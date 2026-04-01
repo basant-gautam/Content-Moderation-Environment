@@ -1,145 +1,90 @@
-from __future__ import annotations
-
-import argparse
-import json
 import os
-from typing import Any, Dict, List
+import requests
+from openai import OpenAI
+from typing import List, Optional
 
-from environment import ContentModerationEnv
-from grader import average_score
-from moderation_logic import moderate_text
+# --- CONFIGURATION (Environment Variables) ---
+# Mentor apni keys aur URL yahan se pass karenge
+API_BASE_URL = os.getenv("API_BASE_URL", "https://basant-levi-ai-content-moderation-openenv.hf.space").rstrip('/')
+MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
+# Mentor 'HF_TOKEN' ya 'OPENAI_API_KEY' mein apni key denge
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
 
-SYSTEM_PROMPT = """You are a content moderation agent.
-Return only a JSON object with this exact schema:
-{"label":"safe|spam|hate|violence","action":"allow|delete|flag|escalate"}
-Choose a single best label and action."""
+def main():
+    # MANDATORY START LINE
+    print(f"[START] task=moderation-task env=content-moderation-v1 model={MODEL_NAME}", flush=True)
+    
+    if not API_KEY:
+        print("[END] success=false steps=0 rewards= error=Missing API Key in environment variables", flush=True)
+        return
 
-GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-
-
-def _parse_json_object(text: str) -> Dict[str, Any]:
-    text = text.strip()
-    if not text:
-        return {}
-
+    # OpenAI Client: Ye mentor ke provide kiye gaye URL aur Key par depend karega
+    # Agar mentor OpenAI use karenge toh wo apna URL denge, warna default Groq/HF base use hoga
+    client = OpenAI(
+        base_url=os.getenv("OPENAI_BASE_URL", "https://api.groq.com/openai/v1"),
+        api_key=API_KEY
+    )
+    
+    rewards = []
+    steps_taken = 0
+    success = False
+    
     try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        start = text.find("{")
-        end = text.rfind("}")
-        if start == -1 or end == -1 or end <= start:
-            return {}
-        try:
-            return json.loads(text[start : end + 1])
-        except json.JSONDecodeError:
-            return {}
+        # Step 1: Reset Environment
+        reset_resp = requests.post(f"{API_BASE_URL}/reset")
+        if reset_resp.status_code != 200:
+            raise Exception(f"Reset Failed: {reset_resp.status_code}")
+            
+        data = reset_resp.json()
+        observation = data.get("observation")
+        done = data.get("done", False)
 
+        # Step 2: Moderation Loop (42 examples)
+        for step in range(1, 43):
+            if done or not observation:
+                break
+                
+            text_to_moderate = observation.get("text", "")
 
-def ask_llm(client: Any, model: str, observation: Dict[str, Any]) -> Dict[str, Any]:
-    response = client.chat.completions.create(
-        model=model,
-        temperature=0,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": json.dumps(observation, ensure_ascii=True),
-            },
-        ],
-    )
-    content = response.choices[0].message.content or "{}"
-    return _parse_json_object(content)
+            # AI decision making logic
+            completion = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[{
+                    "role": "user", 
+                    "content": f"Classify this text as [safe, spam, hate, violence]. Reply with ONLY the word: {text_to_moderate}"
+                }],
+                temperature=0.1
+            )
+            action_label = completion.choices[0].message.content.strip().lower()
+            # Cleaning the label
+            action_label = "".join(filter(str.isalpha, action_label))
 
+            # Step 3: Update Environment
+            step_resp = requests.post(
+                f"{API_BASE_URL}/step", 
+                json={"label": action_label, "action": "flag"}
+            ).json()
+            
+            reward = step_resp.get("reward", 0.0)
+            done = step_resp.get("done", False)
+            observation = step_resp.get("observation")
+            
+            # MANDATORY STEP LINE
+            print(f"[STEP] step={step} action={action_label} reward={reward:.2f} done={str(done).lower()} error=null", flush=True)
+            
+            rewards.append(reward)
+            steps_taken = step
 
-def run_episode(model: str, local_only: bool, max_steps: int | None) -> Dict[str, Any]:
-    env = ContentModerationEnv(max_steps=max_steps)
-    env.reset()
+        # Final Evaluation
+        avg_reward = sum(rewards) / len(rewards) if rewards else 0
+        success = avg_reward > 0.3
 
-    groq_api_key = os.getenv("GROQ_API_KEY")
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-
-    provider = "local_heuristic"
-    use_llm = not local_only and bool(groq_api_key or openai_api_key)
-    client = None
-    if use_llm:
-        try:
-            from openai import OpenAI
-        except ImportError:
-            use_llm = False
-        else:
-            if groq_api_key:
-                provider = "groq"
-                model = os.getenv("GROQ_MODEL", model or "llama-3.1-8b-instant")
-                client = OpenAI(base_url=GROQ_BASE_URL, api_key=groq_api_key)
-            elif openai_api_key:
-                provider = "openai"
-                client = OpenAI(api_key=openai_api_key)
-            else:
-                use_llm = False
-
-    results: List[Dict[str, Any]] = []
-
-    while True:
-        current_state = env.state()
-        observation = current_state["observation"]
-        if observation is None:
-            break
-
-        if use_llm and client is not None:
-            try:
-                prediction = ask_llm(client, model, observation)
-            except Exception:
-                provider = "local_heuristic"
-                prediction = moderate_text(observation["text"], observation["metadata"])
-        else:
-            prediction = moderate_text(observation["text"], observation["metadata"])
-
-        transition = env.step(prediction)
-        results.append(transition["info"])
-
-        if transition["done"]:
-            break
-
-    level_scores: Dict[str, List[float]] = {"easy": [], "medium": [], "hard": []}
-    for result in results:
-        level_scores[result["level"]].append(result["score"])
-
-    summary = {
-        "mode": provider if use_llm else "local_heuristic",
-        "model": model if use_llm else "rule_based",
-        "evaluated_examples": len(results),
-        "final_score": average_score(result["score"] for result in results),
-        "level_scores": {
-            level: average_score(scores) for level, scores in level_scores.items() if scores
-        },
-    }
-    return summary
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Run moderation evaluation across the dataset.")
-    parser.add_argument(
-        "--model",
-        default=os.getenv("GROQ_MODEL", os.getenv("OPENAI_MODEL", "llama-3.1-8b-instant")),
-        help="Model name used by LLM provider (Groq preferred).",
-    )
-    parser.add_argument(
-        "--local-only",
-        action="store_true",
-        help="Skip the OpenAI API and use the local heuristic baseline.",
-    )
-    parser.add_argument(
-        "--max-steps",
-        type=int,
-        default=None,
-        help="Limit the number of evaluation steps.",
-    )
-    args = parser.parse_args()
-
-    summary = run_episode(args.model, args.local_only, args.max_steps)
-    print(json.dumps(summary, indent=2))
-
+    except Exception as e:
+        print(f"Error Details: {str(e)}")
+    finally:
+        # MANDATORY END LINE
+        rewards_str = ",".join([f"{r:.2f}" for r in rewards]) if rewards else ""
+        print(f"[END] success={str(success).lower()} steps={steps_taken} rewards={rewards_str}", flush=True)
 
 if __name__ == "__main__":
     main()
