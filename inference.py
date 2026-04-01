@@ -4,10 +4,10 @@ from openai import OpenAI
 from typing import List, Optional
 
 # --- CONFIGURATION (Environment Variables) ---
-# Mentor apni keys aur URL yahan se pass karenge
+# Pass API settings using environment variables.
 API_BASE_URL = os.getenv("API_BASE_URL", "https://basant-levi-ai-content-moderation-openenv.hf.space").rstrip('/')
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
-# Mentor 'HF_TOKEN' ya 'OPENAI_API_KEY' mein apni key denge
+# Use HF_TOKEN or OPENAI_API_KEY as the API key source.
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
 
 def main():
@@ -18,8 +18,8 @@ def main():
         print("[END] success=false steps=0 rewards= error=Missing API Key in environment variables", flush=True)
         return
 
-    # OpenAI Client: Ye mentor ke provide kiye gaye URL aur Key par depend karega
-    # Agar mentor OpenAI use karenge toh wo apna URL denge, warna default Groq/HF base use hoga
+    # OpenAI-compatible client configured by environment variables.
+    # If OPENAI_BASE_URL is not set, the default Groq-compatible base URL is used.
     client = OpenAI(
         base_url=os.getenv("OPENAI_BASE_URL", "https://api.groq.com/openai/v1"),
         api_key=API_KEY
