@@ -1,0 +1,83 @@
+apiVersion: openenv/v1
+kind: Environment
+
+metadata:
+  name: ContentModeration-v1
+  version: 1.0.0
+  description: >-
+    Stateful hybrid AI content moderation environment with multi-level tasks,
+    strict action schema, deterministic grading, and FastAPI runtime.
+
+spec:
+  runtime:
+    type: fastapi
+    base_url: http://127.0.0.1:8000
+    health_endpoint: /health
+    action_endpoint: /moderate
+    demo_endpoint: /demo
+    port: 8000
+
+  observation_schema:
+    title: Observation
+    type: object
+    additionalProperties: false
+    required:
+      - text
+      - metadata
+    properties:
+      text:
+        type: string
+        description: User-generated content to be moderated.
+      metadata:
+        type: object
+        additionalProperties: true
+        required:
+          - channel
+          - reports
+          - severity
+          - level
+        properties:
+          channel:
+            type: string
+            description: Source channel (comment, reply, direct_message, etc.).
+          reports:
+            type: integer
+            minimum: 0
+            description: Number of user reports.
+          severity:
+            type: string
+            enum: [low, medium, high]
+            description: Severity level associated with the sample.
+          level:
+            type: string
+            enum: [easy, medium, hard]
+            description: Task difficulty level.
+
+  action_schema:
+    title: Action
+    type: object
+    additionalProperties: false
+    required:
+      - label
+      - action
+    properties:
+      label:
+        type: string
+        enum: [safe, spam, hate, violence]
+      action:
+        type: string
+        enum: [allow, delete, flag, escalate]
+
+  tasks:
+    - id: easy
+      name: Easy Moderation
+      difficulty: easy
+      description: Spam-focused moderation samples.
+    - id: medium
+      name: Medium Moderation
+      difficulty: medium
+      description: Hate and abusive content detection.
+    - id: hard
+      name: Hard Moderation
+      difficulty: hard
+      description: Context-aware and multi-step moderation edge cases.
