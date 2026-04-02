@@ -22,7 +22,7 @@ User Input -> Frontend/API -> Hybrid Moderation -> Label + Action -> Scoring/Dec
 
 - app.py
   - FastAPI server
-  - Endpoints: /health, /moderate, /demo, /docs
+  - Endpoints: /, /health, /moderate, /reset, /step, /state, /docs
 - moderation_logic.py
   - Groq client via OpenAI-compatible SDK
   - strict JSON moderation output parsing
@@ -100,6 +100,10 @@ Stop server:
 
 ## 4) API endpoints
 
+### GET /
+
+Returns a basic service message and docs path.
+
 ### GET /health
 
 Returns service health and dataset size.
@@ -124,11 +128,27 @@ Response body:
 }
 ```
 
-### GET /demo
+### POST /reset
 
-- randomly picks one dataset example
-- runs moderation
-- returns input and output for quick demo
+- resets the stateful moderation environment
+- returns first observation and done flag
+
+### POST /step
+
+Request body:
+
+```json
+{
+  "label": "safe|spam|hate|violence",
+  "action": "allow|delete|flag|escalate"
+}
+```
+
+Returns next observation, reward, done, and grading info.
+
+### GET /state
+
+Returns current environment state, aggregate reward, and dynamic fields such as user_risk_score/content_status.
 
 ### Interactive docs
 
@@ -144,21 +164,22 @@ Manual usage:
 - enter text
 - click Moderate
 - label and action are shown
-- click Load Demo to test /demo endpoint
+- optional: click Load Demo only if a /demo endpoint is added (the current backend does not implement /demo)
 
 ## 6) Evaluation mode
 
-Run deterministic local baseline:
-
-```powershell
-python inference.py --local-only
-```
-
-Run hybrid mode (uses Groq when available):
+Run OpenEnv-style inference client:
 
 ```powershell
 python inference.py
 ```
+
+Environment variables used by inference.py:
+
+- API_BASE_URL (default: https://basant-levi-ai-content-moderation-openenv.hf.space)
+- MODEL_NAME (default: llama-3.1-8b-instant)
+- HF_TOKEN or OPENAI_API_KEY (required)
+- OPENAI_BASE_URL (optional, default: https://api.groq.com/openai/v1)
 
 ## 7) Docker mode
 
