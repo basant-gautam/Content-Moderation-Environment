@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Iterable, List
 
-from dataset import VALID_ACTIONS, VALID_LABELS
+from server.dataset import VALID_ACTIONS, VALID_LABELS
 
 INVALID_OUTPUT_PENALTY = 0.6
 WRONG_ACTION_PENALTY = 0.25

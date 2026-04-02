@@ -5,7 +5,7 @@ import os
 import re
 from typing import Any, Dict
 
-from dataset import VALID_ACTIONS, VALID_LABELS
+from server.dataset import VALID_ACTIONS, VALID_LABELS
 
 SAFE_CONTEXT_MARKERS = (
     "is hateful and should be reported",

@@ -5,9 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 # Internal imports from your files
-from dataset import load_dataset
-from environment import ContentModerationEnv
-from moderation_logic import moderate_text
+from server.dataset import load_dataset
+from server.environment import ContentModerationEnv
+from server.moderation_logic import moderate_text
 
 app = FastAPI(
     title="AI Content Moderation Environment",
@@ -26,24 +26,28 @@ app.add_middleware(
 # Initialize the OpenEnv Environment
 env = ContentModerationEnv()
 
+
 # --- Request/Response Models ---
 class ActionRequest(BaseModel):
     label: str
     action: str = "allow"
 
+
 class ModerateRequest(BaseModel):
     text: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
-# --- Endpoints ---
 
+# --- Endpoints ---
 @app.get("/")
 def root():
     return {"message": "OpenEnv Moderation Server is Running", "docs": "/docs"}
 
+
 @app.get("/health")
 def health() -> Dict[str, Any]:
     return {"status": "ok", "dataset_size": len(load_dataset())}
+
 
 @app.post("/reset")
 def reset() -> Dict[str, Any]:
@@ -57,6 +61,7 @@ def reset() -> Dict[str, Any]:
         "done": bool(env.done),
         "info": {},
     }
+
 
 @app.post("/step")
 def step(action: ActionRequest) -> Dict[str, Any]:
@@ -80,10 +85,12 @@ def step(action: ActionRequest) -> Dict[str, Any]:
             "info": {"error": "step_failed", "message": str(exc)},
         }
 
+
 @app.get("/state")
 def get_state():
     """MANDATORY: Returns the current state of the environment."""
     return env.state()
+
 
 # Optional: Keep your old moderate endpoint for backward compatibility
 @app.post("/moderate")

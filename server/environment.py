@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from dataset import load_dataset
-from grader import average_score, grade_prediction
+from server.dataset import load_dataset
+from server.grader import average_score, grade_prediction
 
 
 class ContentModerationEnv:
