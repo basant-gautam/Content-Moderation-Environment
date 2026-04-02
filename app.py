@@ -1,6 +1,5 @@
 from __future__ import annotations
-import random
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -30,7 +29,18 @@ env = ContentModerationEnv()
 # --- Request/Response Models ---
 class ActionRequest(BaseModel):
     label: str
-    action: str = "flag"
+    action: str
+
+
+class ObservationResponse(BaseModel):
+    text: str
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class OpenEnvResponse(BaseModel):
+    observation: ObservationResponse
+    done: bool
+    info: Dict[str, Any] = Field(default_factory=dict)
 
 class ModerateRequest(BaseModel):
     text: str
@@ -47,18 +57,26 @@ def health() -> Dict[str, Any]:
     return {"status": "ok", "dataset_size": len(load_dataset())}
 
 @app.post("/reset")
-def reset():
+def reset() -> OpenEnvResponse:
     """MANDATORY: Resets the environment and returns the first observation."""
     observation = env.reset()
-    return {"observation": observation, "done": env.done}
+    return OpenEnvResponse(
+        observation=ObservationResponse(**observation),
+        done=env.done,
+        info={},
+    )
 
 @app.post("/step")
-def step(action: ActionRequest):
-    """MANDATORY: Takes an action and returns next observation, reward, and done status."""
+def step(action: ActionRequest) -> OpenEnvResponse:
+    """MANDATORY: Takes an action and returns next observation and done status."""
     # Converting request to dict for environment compatibility
     action_dict = {"label": action.label, "action": action.action}
     result = env.step(action_dict)
-    return result
+    return OpenEnvResponse(
+        observation=ObservationResponse(**result["observation"]),
+        done=bool(result["done"]),
+        info=dict(result.get("info", {})),
+    )
 
 @app.get("/state")
 def get_state():

@@ -25,6 +25,7 @@ class ContentModerationEnv:
         self.done = False
         self.user_risk_score = 0.0
         self.content_status = "open"
+        self.action_history: List[Dict[str, str]] = []
         self.history: List[Dict[str, Any]] = []
 
     def _observation_for_index(self, index: int) -> Optional[Dict[str, Any]]:
@@ -66,6 +67,7 @@ class ContentModerationEnv:
         self.done = self.max_steps == 0
         self.user_risk_score = 0.0
         self.content_status = "open"
+        self.action_history = []
         self.history = []
         return self._observation_for_index(self.current_index) or {"text": "", "metadata": {}}
 
@@ -78,16 +80,16 @@ class ContentModerationEnv:
             "average_reward": average_score(item["reward"] for item in self.history),
             "user_risk_score": self.user_risk_score,
             "content_status": self.content_status,
+            "action_history": self.action_history,
             "example_step": self.example_step,
-            "observation": None if self.done else self._observation_for_index(self.current_index),
+            "observation": self._observation_for_index(self.current_index) or {"text": "", "metadata": {}},
         }
 
     def step(self, action: Dict[str, Any]) -> Dict[str, Any]:
         if self.done or self.current_index >= self.max_steps:
             self.done = True
             return {
-                "observation": None,
-                "reward": 0.0,
+                "observation": {"text": "", "metadata": {}},
                 "done": True,
                 "info": {"error": "episode_complete"},
             }
@@ -99,8 +101,12 @@ class ContentModerationEnv:
         required_steps = self._required_steps(example)
 
         predicted_action = ""
+        predicted_label = ""
         if isinstance(action, dict):
             predicted_action = str(action.get("action", ""))
+            predicted_label = str(action.get("label", ""))
+
+        self.action_history.append({"label": predicted_label, "action": predicted_action})
         self._update_dynamic_state(
             predicted_action=predicted_action,
             expected_label=example["expected"]["label"],
@@ -134,11 +140,10 @@ class ContentModerationEnv:
                 self.content_status = "flagged"
 
         self.done = self.current_index >= self.max_steps
-        next_observation = None if self.done else self._observation_for_index(self.current_index)
+        next_observation = self._observation_for_index(self.current_index) or {"text": "", "metadata": {}}
 
         return {
             "observation": next_observation,
-            "reward": reward,
             "done": self.done,
             "info": {
                 "example_id": example["id"],
@@ -156,6 +161,7 @@ class ContentModerationEnv:
                 "errors": grading["errors"],
                 "content_status": self.content_status,
                 "user_risk_score": self.user_risk_score,
+                "action_history": self.action_history,
                 "episode_average_reward": average_score(item["reward"] for item in self.history),
                 "episode_average_score": average_score(item["score"] for item in self.history),
             },
