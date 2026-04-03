@@ -7,12 +7,12 @@ name = "content-moderation-env"
 version = "0.1.0"
 description = "OpenEnv compliant moderation environment"
 dependencies = [
-  "fastapi",
-  "uvicorn",
-  "pydantic",
-  "requests",
-  "openai",
-  "openenv>=0.2.0",
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "requests",
+    "openai",
+    "openenv>=0.2.0",
 ]
 
 [project.scripts]
