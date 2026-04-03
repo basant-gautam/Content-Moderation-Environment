@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Any, Dict
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -97,3 +98,11 @@ def get_state():
 def moderate(request: ModerateRequest):
     result = moderate_text(request.text, request.metadata)
     return result
+
+
+def main() -> None:
+    uvicorn.run(app, host="0.0.0.0", port=7860)
+
+
+if __name__ == "__main__":
+    main()
