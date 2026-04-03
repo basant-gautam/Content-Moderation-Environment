@@ -71,13 +71,16 @@ def step(action: ActionRequest) -> Dict[str, Any]:
         action_dict = {"label": action.label, "action": action.action}
         result = env.step(action_dict)
         observation = result.get("observation") or {"text": "", "metadata": {}}
+        info = dict(result.get("info", {}))
         return {
             "observation": {
                 "text": str(observation.get("text", "")),
                 "metadata": dict(observation.get("metadata", {})),
             },
+            "reward": float(info.get("reward", 0.0)),
+            "score": float(info.get("score", 0.0)),
             "done": bool(result.get("done", False)),
-            "info": dict(result.get("info", {})),
+            "info": info,
         }
     except Exception as exc:
         return {
@@ -100,7 +103,7 @@ def moderate(request: ModerateRequest):
     return result
 
 
-def main() -> None:
+def main():
     uvicorn.run(app, host="0.0.0.0", port=7860)
 
 

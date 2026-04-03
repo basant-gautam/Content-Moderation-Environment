@@ -65,7 +65,7 @@ def main():
                 json={"label": action_label, "action": "flag"}
             ).json()
             
-            reward = step_resp.get("reward", 0.0)
+            reward = step_resp.get("reward", step_resp.get("info", {}).get("reward", 0.0))
             done = step_resp.get("done", False)
             observation = step_resp.get("observation")
             
