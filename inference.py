@@ -10,9 +10,9 @@ from typing import List, Optional
 
 # --- CONFIGURATION (Environment Variables) ---
 # Pass API settings using environment variables.
-API_BASE_URL = os.getenv("API_BASE_URL")
+LLM_PROXY_URL = os.getenv("API_BASE_URL")
+ENV_URL = "https://basant-levi-ai-content-moderation-openenv.hf.space"
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
-API_KEY = os.getenv("OPENAI_API_KEY")
 
 def main():
     # MANDATORY START LINE
@@ -25,15 +25,15 @@ def main():
         )
         return
     
-    if not API_BASE_URL:
+    if not LLM_PROXY_URL:
         print("[END] success=false steps=0 rewards= error=Missing API_BASE_URL in environment variables", flush=True)
         return
 
-    if not API_KEY:
+    if not os.getenv("OPENAI_API_KEY"):
         print("[END] success=false steps=0 rewards= error=Missing OPENAI_API_KEY in environment variables", flush=True)
         return
 
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    client = OpenAI(base_url=LLM_PROXY_URL, api_key=os.getenv("OPENAI_API_KEY"))
     
     rewards = []
     steps_taken = 0
@@ -41,7 +41,7 @@ def main():
     
     try:
         # Step 1: Reset Environment
-        reset_resp = requests.post(f"{API_BASE_URL}/reset")
+        reset_resp = requests.post(f"{ENV_URL}/reset")
         if reset_resp.status_code != 200:
             raise Exception(f"Reset Failed: {reset_resp.status_code}")
             
@@ -71,7 +71,7 @@ def main():
 
             # Step 3: Update Environment
             step_resp = requests.post(
-                f"{API_BASE_URL}/step", 
+                f"{ENV_URL}/step", 
                 json={"label": action_label, "action": "flag"}
             ).json()
             
