@@ -1,5 +1,10 @@
 import os
-import requests
+try:
+    import requests
+    REQUESTS_IMPORT_ERROR = None
+except ImportError as exc:
+    requests = None
+    REQUESTS_IMPORT_ERROR = exc
 from openai import OpenAI
 from typing import List, Optional
 
@@ -13,6 +18,13 @@ API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
 def main():
     # MANDATORY START LINE
     print(f"[START] task=moderation-task env=content-moderation-v1 model={MODEL_NAME}", flush=True)
+
+    if requests is None:
+        print(
+            f"[END] success=false steps=0 rewards= error=Missing dependency 'requests': {REQUESTS_IMPORT_ERROR}",
+            flush=True,
+        )
+        return
     
     if not API_KEY:
         print("[END] success=false steps=0 rewards= error=Missing API Key in environment variables", flush=True)
