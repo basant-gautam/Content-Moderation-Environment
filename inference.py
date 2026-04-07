@@ -10,10 +10,15 @@ from typing import List, Optional
 
 # --- CONFIGURATION (Environment Variables) ---
 # Pass API settings using environment variables.
-API_BASE_URL = os.getenv("API_BASE_URL", "https://basant-levi-ai-content-moderation-openenv.hf.space").rstrip('/')
+
+# 1. Scaler's Proxy URL (LLM Calls ke liye)
+LLM_BASE_URL = os.getenv("API_BASE_URL") 
+
+# 2. Aapka Hugging Face Space URL (Manual set karna hoga ya dusra variable use karein)
+ENV_URL = os.getenv("SPACE_URL")
+# 3. Baaki variables sahi hain
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
-# Use HF_TOKEN or OPENAI_API_KEY as the API key source.
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
+API_KEY = os.getenv("OPENAI_API_KEY")
 
 def main():
     # MANDATORY START LINE
@@ -26,16 +31,19 @@ def main():
         )
         return
     
-    if not API_KEY:
-        print("[END] success=false steps=0 rewards= error=Missing API Key in environment variables", flush=True)
+    if not ENV_URL:
+        print("[END] success=false steps=0 rewards= error=Missing API_BASE_URL in environment variables", flush=True)
         return
 
-    # OpenAI-compatible client configured by environment variables.
-    # If OPENAI_BASE_URL is not set, the default Groq-compatible base URL is used.
-    client = OpenAI(
-        base_url=os.getenv("OPENAI_BASE_URL", "https://api.groq.com/openai/v1"),
-        api_key=API_KEY
-    )
+    if not LLM_BASE_URL:
+        print("[END] success=false steps=0 rewards= error=Missing OPENAI_BASE_URL in environment variables", flush=True)
+        return
+
+    if not API_KEY:
+        print("[END] success=false steps=0 rewards= error=Missing OPENAI_API_KEY in environment variables", flush=True)
+        return
+
+    client = OpenAI(base_url=LLM_BASE_URL, api_key=API_KEY)
     
     rewards = []
     steps_taken = 0
@@ -43,7 +51,7 @@ def main():
     
     try:
         # Step 1: Reset Environment
-        reset_resp = requests.post(f"{API_BASE_URL}/reset")
+        reset_resp = requests.post(f"{ENV_URL}/reset")
         if reset_resp.status_code != 200:
             raise Exception(f"Reset Failed: {reset_resp.status_code}")
             
@@ -73,7 +81,7 @@ def main():
 
             # Step 3: Update Environment
             step_resp = requests.post(
-                f"{API_BASE_URL}/step", 
+                f"{ENV_URL}/step", 
                 json={"label": action_label, "action": "flag"}
             ).json()
             
