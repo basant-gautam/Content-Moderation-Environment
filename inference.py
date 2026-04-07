@@ -10,7 +10,8 @@ from typing import List, Optional
 
 # --- CONFIGURATION (Environment Variables) ---
 # Pass API settings using environment variables.
-LLM_PROXY_URL = os.getenv("API_BASE_URL")
+API_BASE_URL = os.getenv("API_BASE_URL")
+API_KEY = os.getenv("API_KEY")
 ENV_URL = "https://basant-levi-ai-content-moderation-openenv.hf.space"
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 
@@ -25,15 +26,15 @@ def main():
         )
         return
     
-    if not LLM_PROXY_URL:
+    if not API_BASE_URL:
         print("[END] success=false steps=0 rewards= error=Missing API_BASE_URL in environment variables", flush=True)
         return
 
-    if not os.getenv("OPENAI_API_KEY"):
-        print("[END] success=false steps=0 rewards= error=Missing OPENAI_API_KEY in environment variables", flush=True)
+    if not API_KEY:
+        print("[END] success=false steps=0 rewards= error=Missing API_KEY in environment variables", flush=True)
         return
 
-    client = OpenAI(base_url=LLM_PROXY_URL, api_key=os.getenv("OPENAI_API_KEY"))
+    client = OpenAI(base_url=os.environ["API_BASE_URL"], api_key=os.environ["API_KEY"])
     
     rewards = []
     steps_taken = 0
