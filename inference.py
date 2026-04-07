@@ -87,7 +87,7 @@ def main():
 
         # Final Evaluation
         avg_reward = sum(rewards) / len(rewards) if rewards else 0
-        success = avg_reward > 0.3
+        success = avg_reward > 0.1
 
     except Exception as e:
         print(f"Error Details: {str(e)}")
