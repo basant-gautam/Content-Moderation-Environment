@@ -11,7 +11,9 @@ from typing import List, Optional
 # --- CONFIGURATION (Environment Variables) ---
 # Pass API settings using environment variables.
 LLM_PROXY_URL = os.getenv("API_BASE_URL")
-ENV_URL = "https://basant-levi-ai-content-moderation-openenv.hf.space"
+# Agar Scaler apna URL bhejega toh wo use hoga, warna aapka asali Hugging Face link.
+ENV_URL = os.getenv("SPACE_URL", "https://basant-levi-ai-content-moderation-openenv.hf.space")
+
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 
 def main():
