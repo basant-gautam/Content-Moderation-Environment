@@ -52,9 +52,7 @@ def get_tasks() -> Dict[str, Any]:
             {"id": "medium", "name": "Medium Moderation", "grader": {"grader_available": True, "score_field": "info.task_score", "score_range": {"min": 0.01, "max": 0.99}}},
             {"id": "hard", "name": "Hard Moderation", "grader": {"grader_available": True, "score_field": "info.task_score", "score_range": {"min": 0.01, "max": 0.99}}},
         ],
-        "easy": {"grader_available": True},
-        "medium": {"grader_available": True},
-        "hard": {"grader_available": True},
+        "task_count": 3,
     }
 
 @app.post("/reset")

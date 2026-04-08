@@ -6,9 +6,9 @@ from server.dataset import load_dataset
 from server.grader import average_score, grade_prediction
 
 TASK_ID_BY_LEVEL = {
-    "easy": "moderation-task-easy",
-    "medium": "moderation-task-medium",
-    "hard": "moderation-task-hard",
+    "easy": "easy",
+    "medium": "medium",
+    "hard": "hard",
 }
 
 TASK_NAME_BY_LEVEL = {
@@ -103,16 +103,22 @@ class ContentModerationEnv:
             return {
                 "observation": {"text": "", "metadata": {}},
                 "done": True,
-                "info": {"error": "episode_complete"},
+                "info": {
+                    "error": "episode_complete",
+                    "score": 0.01,
+                    "task_score": 0.01,
+                    "normalized_score": 0.01,
+                },
             }
 
         example = self.examples[self.current_index]
         grading = grade_prediction(action, example)
         reward = grading["raw_reward"]
-        score = grading["score"]
+        raw_score = grading["score"]
+        score = round(min(0.99, max(0.01, float(raw_score))), 4)
         required_steps = self._required_steps(example)
         task_level = str(example.get("level", "easy"))
-        task_id = TASK_ID_BY_LEVEL.get(task_level, "moderation-task-easy")
+        task_id = TASK_ID_BY_LEVEL.get(task_level, "easy")
         task_name = TASK_NAME_BY_LEVEL.get(task_level, "Easy Moderation")
 
         predicted_action = ""
