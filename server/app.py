@@ -52,9 +52,38 @@ def health() -> Dict[str, Any]:
 @app.get("/tasks")
 def get_tasks() -> Dict[str, Any]:
     return {
+        "tasks": [
+            {
+                "id": "moderation-task-easy",
+                "name": "Easy Moderation",
+                "grader": {
+                    "grader_available": True,
+                    "score_field": "info.task_score",
+                    "score_range": {"min": 0.01, "max": 0.99},
+                },
+            },
+            {
+                "id": "moderation-task-medium",
+                "name": "Medium Moderation",
+                "grader": {
+                    "grader_available": True,
+                    "score_field": "info.task_score",
+                    "score_range": {"min": 0.01, "max": 0.99},
+                },
+            },
+            {
+                "id": "moderation-task-hard",
+                "name": "Hard Moderation",
+                "grader": {
+                    "grader_available": True,
+                    "score_field": "info.task_score",
+                    "score_range": {"min": 0.01, "max": 0.99},
+                },
+            },
+        ],
         "moderation-task-easy": {"grader_available": True},
         "moderation-task-medium": {"grader_available": True},
-        "moderation-task-hard": {"grader_available": True}
+        "moderation-task-hard": {"grader_available": True},
     }
 
 

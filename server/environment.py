@@ -5,6 +5,18 @@ from typing import Any, Dict, List, Optional
 from server.dataset import load_dataset
 from server.grader import average_score, grade_prediction
 
+TASK_ID_BY_LEVEL = {
+    "easy": "moderation-task-easy",
+    "medium": "moderation-task-medium",
+    "hard": "moderation-task-hard",
+}
+
+TASK_NAME_BY_LEVEL = {
+    "easy": "Easy Moderation",
+    "medium": "Medium Moderation",
+    "hard": "Hard Moderation",
+}
+
 
 class ContentModerationEnv:
     """Minimal OpenEnv-style environment for moderation episodes."""
@@ -99,6 +111,9 @@ class ContentModerationEnv:
         reward = grading["raw_reward"]
         score = grading["score"]
         required_steps = self._required_steps(example)
+        task_level = str(example.get("level", "easy"))
+        task_id = TASK_ID_BY_LEVEL.get(task_level, "moderation-task-easy")
+        task_name = TASK_NAME_BY_LEVEL.get(task_level, "Easy Moderation")
 
         predicted_action = ""
         predicted_label = ""
@@ -117,6 +132,8 @@ class ContentModerationEnv:
         self.history.append(
             {
                 "example_id": example["id"],
+                "task_id": task_id,
+                "task_name": task_name,
                 "level": example["level"],
                 "severity": example.get("severity", "low"),
                 "example_step": self.example_step,
@@ -147,6 +164,8 @@ class ContentModerationEnv:
             "done": self.done,
             "info": {
                 "example_id": example["id"],
+                "task_id": task_id,
+                "task_name": task_name,
                 "level": example["level"],
                 "severity": example.get("severity", "low"),
                 "example_step": self.history[-1]["example_step"],
@@ -155,6 +174,7 @@ class ContentModerationEnv:
                 "expected": example["expected"],
                 "reward": reward,
                 "score": score,
+                "task_score": score,
                 "normalized_score": score,
                 "breakdown": grading["breakdown"],
                 "valid": grading["valid"],

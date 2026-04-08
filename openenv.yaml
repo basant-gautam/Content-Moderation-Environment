@@ -73,11 +73,29 @@ spec:
       name: Easy Moderation
       difficulty: easy
       description: Spam-focused moderation samples.
+      grader:
+        type: scalar
+        score_field: info.task_score
+        score_range:
+          min: 0.01
+          max: 0.99
     - id: medium
       name: Medium Moderation
       difficulty: medium
       description: Hate and abusive content detection.
+      grader:
+        type: scalar
+        score_field: info.task_score
+        score_range:
+          min: 0.01
+          max: 0.99
     - id: hard
       name: Hard Moderation
       difficulty: hard
       description: Context-aware and multi-step moderation edge cases.
+      grader:
+        type: scalar
+        score_field: info.task_score
+        score_range:
+          min: 0.01
+          max: 0.99
