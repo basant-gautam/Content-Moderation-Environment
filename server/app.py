@@ -49,6 +49,15 @@ def health() -> Dict[str, Any]:
     return {"status": "ok", "dataset_size": len(load_dataset())}
 
 
+@app.get("/tasks")
+def get_tasks() -> Dict[str, Any]:
+    return {
+        "moderation-task-easy": {"grader_available": True},
+        "moderation-task-medium": {"grader_available": True},
+        "moderation-task-hard": {"grader_available": True}
+    }
+
+
 @app.post("/reset")
 def reset() -> Dict[str, Any]:
     """MANDATORY: Resets the environment and returns the first observation."""

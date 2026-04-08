@@ -42,7 +42,7 @@ def grade_prediction(prediction: Any, example: Dict[str, Any]) -> Dict[str, Any]
         raw_reward = -INVALID_OUTPUT_PENALTY
         return {
             "raw_reward": raw_reward,
-            "score": 0.0,
+            "score": 0.01,
             "valid": False,
             "errors": errors,
             "breakdown": {
@@ -91,7 +91,7 @@ def grade_prediction(prediction: Any, example: Dict[str, Any]) -> Dict[str, Any]
         label_reward + action_reward + severity_handling_reward + severity_bonus + penalty,
         4,
     )
-    score = round(min(1.0, max(0.0, raw_reward)), 4)
+    score = round(min(0.99, max(0.01, raw_reward)), 4)
 
     return {
         "raw_reward": raw_reward,
