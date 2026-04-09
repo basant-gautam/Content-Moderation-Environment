@@ -13,7 +13,7 @@ spec:
     type: fastapi
     base_url: http://127.0.0.1:8000
     health_endpoint: /health
-    action_endpoint: /moderate
+    action_endpoint: /step
     demo_endpoint: /demo
     port: 8000
 
