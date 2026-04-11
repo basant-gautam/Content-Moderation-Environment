@@ -5,7 +5,8 @@ metadata:
   name: ContentModeration-v1
   version: 1.0.0
   description: >-
-    Stateful hybrid AI content moderation environment with multi-level tasks.
+    Stateful hybrid AI content moderation environment with multi-level tasks,
+    strict action schema, deterministic grading, and FastAPI runtime.
 
 spec:
   runtime:
