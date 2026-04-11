@@ -5,7 +5,7 @@ except ImportError:
     requests = None
 from openai import OpenAI
 
-# 🚨 STRICT RULE 1: YAHAN SIRF LOCALHOST AAYEGA, HF LINK NAHI! 🚨
+# 🚨 BACKEND SERVER LOCALHOST PE HI RAHEGA 🚨
 ENV_URL = "http://127.0.0.1:8000"
 
 LABEL_TO_ACTION = {"safe": "allow", "spam": "delete", "hate": "flag", "violence": "escalate"}
@@ -17,6 +17,7 @@ def evaluate_task(client, task_name, model_name):
     success = False
     
     try:
+        # Clean POST request for reset
         reset_resp = requests.post(f"{ENV_URL}/reset", json={"task": task_name})
         data = reset_resp.json() if reset_resp.status_code == 200 else {}
         observation = data.get("observation")
@@ -26,13 +27,19 @@ def evaluate_task(client, task_name, model_name):
             if done or not observation: break
             text_to_moderate = observation.get("text", "")
 
-            # YAHAN SE PROXY KO CALL JAYEGI
+            # 🚨 UPDATED: System Prompt added as per maintainer's suggestion 🚨
             completion = client.chat.completions.create(
                 model=model_name,
-                messages=[{"role": "user", "content": f"Classify this text as safe, spam, hate, or violence. Reply with only the label: {text_to_moderate}"}],
+                messages=[
+                    {"role": "system", "content": "You are a content moderator. Classify text as: safe, spam, hate, or violence. Reply with ONLY the label."},
+                    {"role": "user", "content": text_to_moderate}
+                ],
                 temperature=0.1
             )
-            action_label = "".join(filter(str.isalpha, completion.choices[0].message.content.strip().lower()))
+            
+            # Clean string extraction
+            response_text = completion.choices[0].message.content.strip().lower()
+            action_label = "".join(filter(str.isalpha, response_text))
             action = LABEL_TO_ACTION.get(action_label, "flag")
 
             step_resp = requests.post(f"{ENV_URL}/step", json={"label": action_label, "action": action}).json()
@@ -53,14 +60,10 @@ def evaluate_task(client, task_name, model_name):
         rewards_str = ",".join([f"{r:.2f}" for r in rewards]) if rewards else "0.01"
         print(f"[END] success={str(success).lower()} steps={steps_taken} rewards={rewards_str}", flush=True)
 
-
 def main():
     model_name = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
-    
-    # 🚨 STRICT RULE 2: AUTOGRADER KO EXACTLY YAHI LINE CHAHIYE 🚨
     client = OpenAI(base_url=os.environ["API_BASE_URL"], api_key=os.environ["API_KEY"])
     
-    # TEENO TASKS RUN KARENGE TAAKI SCORE OUT OF RANGE NA AAYE
     for task in ["easy", "medium", "hard"]:
         evaluate_task(client, task, model_name)
 
