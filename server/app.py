@@ -16,7 +16,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# YAHAN WAPAS 0.01 AUR 0.99 KAR DIYA HAI
 TASK_SCORE_MIN = 0.01
 TASK_SCORE_MAX = 0.99
 
@@ -158,8 +157,6 @@ async def step(request: Request) -> Dict[str, Any]:
         if not info.get("task_id"):
             info["task_id"] = str(env.history[-1].get("task_id", current_task_id)) if env.history else (current_task_id if current_task_id in ("easy", "medium", "hard") else "easy")
 
-        # ULTIMATE FIX: Validator agar cumulative average score mangta hai (e.g. 0.0), 
-        # toh use bhi pakad ke 0.01 se 0.99 ke beech lock kar diya!
         safe_score = _bounded_score(info.get("score", 0.01))
         safe_reward = _bounded_score(info.get("reward", 0.01))
         safe_task_score = _bounded_score(info.get("episode_average_score", safe_score))
