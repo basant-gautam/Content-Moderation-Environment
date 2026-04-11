@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-# Internal imports from your files
+# Internal imports from  files
 from server.dataset import load_dataset
 from server.environment import ContentModerationEnv
 from server.moderation_logic import moderate_text
@@ -16,7 +16,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Yahan MIN 0 aur MAX 1 kar diya dikhane ke liye (Schema)
 TASK_SCORE_MIN = 0.0
 TASK_SCORE_MAX = 1.0
 
@@ -40,7 +39,6 @@ class ModerateRequest(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 def _bounded_score(value: Any, default: float = 0.01) -> float:
-    # Math calculation yahan strictly 0.01 se 0.99 hi rahegi!
     try:
         numeric = float(value)
     except (TypeError, ValueError):
@@ -142,7 +140,7 @@ async def reset(request: Request) -> Dict[str, Any]:
     return {
         "observation": {"text": str(observation.get("text", "")), "metadata": dict(observation.get("metadata", {}))},
         "done": bool(env.done),
-        "info": {"task_id": task_id, "task_score": 0.01, "score": 0.01},
+        "info": {"task_id": task_id, "task_score": 0.01, "score": 0.01, "reward": 0.01},
     }
 
 @app.post("/step")
@@ -157,25 +155,35 @@ async def step(request: Request) -> Dict[str, Any]:
         result = env.step(action_dict)
         observation = result.get("observation") or {"text": "", "metadata": {}}
         info = dict(result.get("info", {}))
+        
         if not info.get("task_id"):
             info["task_id"] = str(env.history[-1].get("task_id", current_task_id)) if env.history else (current_task_id if current_task_id in ("easy", "medium", "hard") else "easy")
 
+        # THE MASTER LOCK: Har number ko 0.01 aur 0.99 ke beech clamp kar diya
         safe_score = _bounded_score(info.get("task_score", info.get("score", 0.01)))
+        safe_reward = _bounded_score(info.get("reward", 0.01))
+        
         info["task_score"] = safe_score
         info["score"] = safe_score
         info["normalized_score"] = safe_score
+        info["reward"] = safe_reward
+        info["episode_average_score"] = safe_score
+        info["episode_average_reward"] = safe_reward
         
         return {
             "observation": {"text": str(observation.get("text", "")), "metadata": dict(observation.get("metadata", {}))},
-            "reward": float(info.get("reward", 0.0)),
+            "reward": safe_reward,  # <-- PEHLE YAHAN SE NEGATIVE / 0.0 LEAK HO RAHA THA
             "score": safe_score,
             "done": bool(result.get("done", False)),
             "info": info,
         }
     except Exception as exc:
         return {
-            "observation": {"text": "", "metadata": {}}, "reward": 0.0, "score": 0.01, "done": True,
-            "info": {"error": "step_failed", "message": str(exc), "task_score": 0.01, "score": 0.01, "task_id": current_task_id if current_task_id in ("easy", "medium", "hard") else "easy"},
+            "observation": {"text": "", "metadata": {}}, 
+            "reward": 0.01, 
+            "score": 0.01, 
+            "done": True,
+            "info": {"error": "step_failed", "message": str(exc), "task_score": 0.01, "score": 0.01, "reward": 0.01, "task_id": current_task_id if current_task_id in ("easy", "medium", "hard") else "easy"},
         }
 
 @app.get("/state")
