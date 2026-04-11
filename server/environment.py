@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 from server.dataset import load_dataset
 from server.grader import average_score, grade_prediction
 
+# Tasks aur unke exactly wahi naam jo openenv.yaml mein hain
 TASK_ID_BY_LEVEL = {
     "easy": "easy",
     "medium": "medium",
@@ -16,7 +17,6 @@ TASK_NAME_BY_LEVEL = {
     "medium": "Medium Moderation",
     "hard": "Hard Moderation",
 }
-
 
 class ContentModerationEnv:
     """Minimal OpenEnv-style environment for moderation episodes."""
@@ -100,11 +100,13 @@ class ContentModerationEnv:
     def step(self, action: Dict[str, Any]) -> Dict[str, Any]:
         if self.done or self.current_index >= self.max_steps:
             self.done = True
+            task_id = self.history[-1]["task_id"] if self.history else "easy"
             return {
                 "observation": {"text": "", "metadata": {}},
                 "done": True,
                 "info": {
                     "error": "episode_complete",
+                    "task_id": task_id,
                     "score": 0.01,
                     "task_score": 0.01,
                     "normalized_score": 0.01,
@@ -115,7 +117,10 @@ class ContentModerationEnv:
         grading = grade_prediction(action, example)
         reward = grading["raw_reward"]
         raw_score = grading["score"]
+        
+        # MATH LOCK: Yahan par score finally lock hota hai 0.01 aur 0.99 ke beech
         score = round(min(0.99, max(0.01, float(raw_score))), 4)
+        
         required_steps = self._required_steps(example)
         task_level = str(example.get("level", "easy"))
         task_id = TASK_ID_BY_LEVEL.get(task_level, "easy")
@@ -192,6 +197,5 @@ class ContentModerationEnv:
                 "episode_average_score": average_score(item["score"] for item in self.history),
             },
         }
-
 
 OpenEnvModerationEnv = ContentModerationEnv
