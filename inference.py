@@ -5,12 +5,13 @@ except ImportError:
     requests = None
 from openai import OpenAI
 
-# 🚨 SCALER RUNS YOUR SERVER LOCALLY DURING THE TEST. DO NOT USE HF URL HERE.
+# 1. SERVER URL: Scaler aapka backend locally chalata hai. Isko hardcode rakhna hai!
 ENV_URL = "http://127.0.0.1:8000"
 
 LABEL_TO_ACTION = {"safe": "allow", "spam": "delete", "hate": "flag", "violence": "escalate"}
 
 def evaluate_task(client, task_name, model_name):
+    # HAR TASK APNE NAAM SE CHALEGA
     print(f"[START] task={task_name} env=content-moderation-v1 model={model_name}", flush=True)
     rewards = []
     steps_taken = 0
@@ -74,7 +75,7 @@ def main():
         api_key=api_key
     )
     
-    # 🔥 YAHAN TEENO TASKS RUN HONGE 🔥
+    # 🔥 YAHAN TEENO TASKS RUN HONGE TAAKI SCORE 0.0 NA AAYE 🔥
     for task in ["easy", "medium", "hard"]:
         evaluate_task(client, task, model_name)
 
