@@ -11,10 +11,9 @@ from server.moderation_logic import moderate_text
 
 app = FastAPI(title="AI Content Moderation Environment", version="1.0.0")
 
-# MENU KE LIYE EXACT 0 AUR 1
-# MENU KE LIYE STRICT OPEN INTERVAL
-TASK_SCORE_MIN = 0.01
-TASK_SCORE_MAX = 0.99
+# YAHAN 0 AUR 1 KIYA HAI SCHEMA KE LIYE
+TASK_SCORE_MIN = 0.0
+TASK_SCORE_MAX = 1.0
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
@@ -30,7 +29,6 @@ class ModerateRequest(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 def _bounded_score(value: Any, default: float = 0.01) -> float:
-    # MATH LOCK: Yahan value 0.01 se 0.99 ke beech lock ho jayegi
     try: numeric = float(value)
     except (TypeError, ValueError): numeric = default
     if not math.isfinite(numeric): numeric = default
@@ -90,7 +88,7 @@ async def reset(request: Request) -> Dict[str, Any]:
     return {
         "observation": {"text": str(observation.get("text", "")), "metadata": dict(observation.get("metadata", {}))},
         "done": bool(env.done),
-        "info": {"task_id": current_task_id if current_task_id != "all" else "easy", "task_score": 0.01, "score": 0.01},
+        "info": {"task_id": current_task_id if current_task_id in ("easy", "medium", "hard") else "easy", "task_score": 0.01, "score": 0.01},
     }
 
 @app.post("/step")
@@ -102,9 +100,9 @@ async def step(request: Request) -> Dict[str, Any]:
         observation = result.get("observation") or {"text": "", "metadata": {}}
         info = dict(result.get("info", {}))
         
-        info["task_id"] = current_task_id if current_task_id != "all" else "easy"
+        info["task_id"] = current_task_id if current_task_id in ("easy", "medium", "hard") else "easy"
 
-        # MASTER LOCK SAB KUCH QUAID KAR DIYA
+        # MASTER LOCK FOR ALL METRICS
         safe_score = _bounded_score(info.get("task_score", info.get("score", 0.01)))
         safe_reward = _bounded_score(info.get("reward", 0.01))
         safe_avg = _bounded_score(info.get("episode_average_score", safe_score))
@@ -125,7 +123,10 @@ async def step(request: Request) -> Dict[str, Any]:
         }
     except Exception as exc:
         safe_err = 0.01
-        return {"observation": {"text": "", "metadata": {}}, "reward": safe_err, "score": safe_err, "done": True, "info": {"task_score": safe_err, "score": safe_err}}
+        return {
+            "observation": {"text": "", "metadata": {}}, "reward": safe_err, "score": safe_err, "done": True,
+            "info": {"error": "failed", "task_score": safe_err, "score": safe_err, "reward": safe_err, "task_id": current_task_id if current_task_id in ("easy", "medium", "hard") else "easy"},
+        }
 
 @app.get("/state")
 def get_state(): return env.state()

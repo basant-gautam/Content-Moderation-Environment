@@ -23,16 +23,8 @@ def validate_prediction(prediction: Any) -> List[str]:
 def grade_prediction(prediction: Any, example: Dict[str, Any]) -> Dict[str, Any]:
     errors = validate_prediction(prediction)
     expected = example["expected"]
-
     if errors:
-        return {
-            "raw_reward": -INVALID_OUTPUT_PENALTY,
-            "score": 0.01,
-            "valid": False,
-            "errors": errors,
-            "breakdown": {"label_reward": 0.0, "action_reward": 0.0, "severity_reward": 0.0, "penalty": -INVALID_OUTPUT_PENALTY},
-            "expected": expected,
-        }
+        return {"raw_reward": -INVALID_OUTPUT_PENALTY, "score": 0.01, "valid": False, "errors": errors, "breakdown": {"label_reward": 0.0, "action_reward": 0.0, "severity_reward": 0.0, "penalty": -INVALID_OUTPUT_PENALTY}, "expected": expected}
 
     predicted_label = prediction["label"]
     predicted_action = prediction["action"]
@@ -59,20 +51,11 @@ def grade_prediction(prediction: Any, example: Dict[str, Any]) -> Dict[str, Any]
     raw_reward = round(label_reward + action_reward + severity_handling_reward + severity_bonus + penalty, 4)
     score = round(min(0.99, max(0.01, raw_reward)), 4)
 
-    return {
-        "raw_reward": raw_reward,
-        "score": score,
-        "valid": True,
-        "errors": [],
-        "breakdown": {"label_reward": label_reward, "action_reward": action_reward, "severity_handling_reward": severity_handling_reward, "severity_bonus": severity_bonus, "penalty": penalty},
-        "expected": expected,
-        "expected_severity": expected_severity,
-        "predicted_severity": predicted_severity,
-    }
+    return {"raw_reward": raw_reward, "score": score, "valid": True, "errors": [], "breakdown": {"label_reward": label_reward, "action_reward": action_reward, "severity_handling_reward": severity_handling_reward, "severity_bonus": severity_bonus, "penalty": penalty}, "expected": expected, "expected_severity": expected_severity, "predicted_severity": predicted_severity}
 
 def average_score(scores: Iterable[float]) -> float:
     scores_list = list(scores)
-    # HIDDEN BUG FIX: Agar list khali hai toh 0.0 nahi, 0.01 return karega!
+    # HIDDEN BUG FIX: Yahan 0.0 ki jagah 0.01 return hoga agar array empty hai!
     if not scores_list:
         return 0.01
     avg = sum(scores_list) / len(scores_list)

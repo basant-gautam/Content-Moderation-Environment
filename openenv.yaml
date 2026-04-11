@@ -50,7 +50,7 @@ spec:
       grader:
         type: scalar
         score_field: info.task_score
-        score_range: {min: 0.01, max: 0.99}
+        score_range: {min: 0, max: 1}
     - id: medium
       name: Medium Moderation
       difficulty: medium
@@ -58,7 +58,7 @@ spec:
       grader:
         type: scalar
         score_field: info.task_score
-        score_range: {min: 0.01, max: 0.99}
+        score_range: {min: 0, max: 1}
     - id: hard
       name: Hard Moderation
       difficulty: hard
@@ -66,4 +66,4 @@ spec:
       grader:
         type: scalar
         score_field: info.task_score
-        score_range: {min: 0.01, max: 0.99}
+        score_range: {min: 0, max: 1}
