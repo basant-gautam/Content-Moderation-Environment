@@ -9,8 +9,9 @@ from server.dataset import load_dataset
 from server.environment import ContentModerationEnv
 from server.moderation_logic import moderate_text
 
-app = FastAPI(title="AI Content Moderation Environment")
+app = FastAPI(title="AI Content Moderation Environment", version="1.0.0")
 
+# MENU KE LIYE EXACT 0 AUR 1
 TASK_SCORE_MIN = 0.0
 TASK_SCORE_MAX = 1.0
 
@@ -28,6 +29,7 @@ class ModerateRequest(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 def _bounded_score(value: Any, default: float = 0.01) -> float:
+    # MATH LOCK: Yahan value 0.01 se 0.99 ke beech lock ho jayegi
     try: numeric = float(value)
     except (TypeError, ValueError): numeric = default
     if not math.isfinite(numeric): numeric = default
@@ -48,10 +50,7 @@ def _extract_task_name(body: Dict[str, Any], request: Request) -> str:
     return ""
 
 def _extract_action_payload(payload: Dict[str, Any]) -> Dict[str, str]:
-    return {
-        "label": str(payload.get("label", "safe")),
-        "action": str(payload.get("action", payload.get("moderation_action", "allow"))),
-    }
+    return {"label": str(payload.get("label", "safe")), "action": str(payload.get("action", payload.get("moderation_action", "allow")))}
 
 def _task_entry(task_id: str, name: str, description: str) -> Dict[str, Any]:
     return {
@@ -65,7 +64,7 @@ def _task_entry(task_id: str, name: str, description: str) -> Dict[str, Any]:
 def root(): return {"message": "Running", "docs": "/docs"}
 
 @app.get("/health")
-def health() -> Dict[str, Any]: return {"status": "ok"}
+def health() -> Dict[str, Any]: return {"status": "ok", "dataset_size": len(load_dataset())}
 
 @app.get("/tasks")
 def get_tasks() -> Dict[str, Any]:
@@ -104,20 +103,28 @@ async def step(request: Request) -> Dict[str, Any]:
         
         info["task_id"] = current_task_id if current_task_id != "all" else "easy"
 
+        # MASTER LOCK SAB KUCH QUAID KAR DIYA
         safe_score = _bounded_score(info.get("task_score", info.get("score", 0.01)))
-        info["task_score"] = safe_score
+        safe_reward = _bounded_score(info.get("reward", 0.01))
+        safe_avg = _bounded_score(info.get("episode_average_score", safe_score))
+
+        info["task_score"] = safe_avg
         info["score"] = safe_score
         info["normalized_score"] = safe_score
+        info["reward"] = safe_reward
+        info["episode_average_score"] = safe_avg
+        info["episode_average_reward"] = safe_reward
         
         return {
             "observation": {"text": str(observation.get("text", "")), "metadata": dict(observation.get("metadata", {}))},
-            "reward": float(info.get("reward", 0.0)),
+            "reward": safe_reward,
             "score": safe_score,
             "done": bool(result.get("done", False)),
             "info": info,
         }
     except Exception as exc:
-        return {"observation": {"text": "", "metadata": {}}, "reward": 0.0, "score": 0.01, "done": True, "info": {"task_score": 0.01}}
+        safe_err = 0.01
+        return {"observation": {"text": "", "metadata": {}}, "reward": safe_err, "score": safe_err, "done": True, "info": {"task_score": safe_err, "score": safe_err}}
 
 @app.get("/state")
 def get_state(): return env.state()
