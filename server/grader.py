@@ -55,7 +55,7 @@ def grade_prediction(prediction: Any, example: Dict[str, Any]) -> Dict[str, Any]
 
 def average_score(scores: Iterable[float]) -> float:
     scores_list = list(scores)
-    # HIDDEN BUG FIX: Yahan 0.0 ki jagah 0.01 return hoga agar array empty hai!
+    # BUG FIX: Return 0.01 instead of 0.0 if empty list
     if not scores_list:
         return 0.01
     avg = sum(scores_list) / len(scores_list)

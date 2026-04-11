@@ -88,7 +88,7 @@ async def reset(request: Request) -> Dict[str, Any]:
     return {
         "observation": {"text": str(observation.get("text", "")), "metadata": dict(observation.get("metadata", {}))},
         "done": bool(env.done),
-        "info": {"task_id": current_task_id if current_task_id in ("easy", "medium", "hard") else "easy", "task_score": 0.01, "score": 0.01},
+        "info": {"task_id": current_task_id if current_task_id != "all" else "easy", "task_score": 0.01, "score": 0.01},
     }
 
 @app.post("/step")
@@ -100,9 +100,8 @@ async def step(request: Request) -> Dict[str, Any]:
         observation = result.get("observation") or {"text": "", "metadata": {}}
         info = dict(result.get("info", {}))
         
-        info["task_id"] = current_task_id if current_task_id in ("easy", "medium", "hard") else "easy"
+        info["task_id"] = current_task_id if current_task_id != "all" else "easy"
 
-        # MASTER LOCK FOR ALL METRICS
         safe_score = _bounded_score(info.get("task_score", info.get("score", 0.01)))
         safe_reward = _bounded_score(info.get("reward", 0.01))
         safe_avg = _bounded_score(info.get("episode_average_score", safe_score))
@@ -123,10 +122,7 @@ async def step(request: Request) -> Dict[str, Any]:
         }
     except Exception as exc:
         safe_err = 0.01
-        return {
-            "observation": {"text": "", "metadata": {}}, "reward": safe_err, "score": safe_err, "done": True,
-            "info": {"error": "failed", "task_score": safe_err, "score": safe_err, "reward": safe_err, "task_id": current_task_id if current_task_id in ("easy", "medium", "hard") else "easy"},
-        }
+        return {"observation": {"text": "", "metadata": {}}, "reward": safe_err, "score": safe_err, "done": True, "info": {"task_score": safe_err, "score": safe_err}}
 
 @app.get("/state")
 def get_state(): return env.state()
