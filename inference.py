@@ -33,11 +33,12 @@ def _wait_for_env(env_url, timeout_seconds=60):
                 proxies=LOCAL_PROXIES
             )
             if response.ok:
-                return
+                return True
         except Exception as exc:
             last_error = exc
         time.sleep(1.0)
-    raise RuntimeError(f"environment backend not reachable at {env_url}: {last_error}")
+    print(f"Warning: environment backend not reachable at {env_url}: {last_error}", flush=True)
+    return False
 
 def _probe_llm_proxy(client, model_name):
     try:
@@ -115,12 +116,30 @@ def evaluate_task(client, task_name, model_name):
 
 def main():
     model_name = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
-    
-    # Official client uses the environment proxy correctly
-    client = OpenAI(base_url=os.environ["API_BASE_URL"], api_key=os.environ["API_KEY"])
-    
-    _wait_for_env(ENV_URL)
-    _probe_llm_proxy(client, model_name)
+
+    api_base_url = os.environ.get("API_BASE_URL")
+    api_key = os.environ.get("API_KEY")
+    if not api_base_url or not api_key:
+        print("Missing API_BASE_URL or API_KEY for LLM client setup.", flush=True)
+        return
+
+    try:
+        # Official client uses the environment proxy correctly
+        client = OpenAI(base_url=api_base_url, api_key=api_key)
+    except Exception as exc:
+        print(f"Unable to initialize LLM client: {str(exc)}", flush=True)
+        return
+
+    try:
+        _wait_for_env(ENV_URL)
+    except Exception as exc:
+        # Defensive guard: _wait_for_env should not raise, but keep main non-fatal if it does.
+        print(f"Warning: backend readiness check failed: {str(exc)}", flush=True)
+
+    try:
+        _probe_llm_proxy(client, model_name)
+    except Exception as exc:
+        print(f"Proxy probe skipped/failed: {str(exc)}", flush=True)
     
     for task in ["easy", "medium", "hard"]:
         evaluate_task(client, task, model_name)
