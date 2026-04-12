@@ -58,12 +58,16 @@ def _extract_task_name(body: Dict[str, Any], request: Request) -> str:
     candidates = [
         body.get("task"),
         body.get("task_id"),
+        body.get("taskId"),
         body.get("task_name"),
         body.get("taskName"),
+        body.get("tasks"),
         body.get("id"),
         body.get("name"),
         body.get("config"),
         request.query_params.get("task"),
+        request.query_params.get("taskId"),
+        request.query_params.get("taskName"),
         request.query_params.get("task_id"),
         request.query_params.get("task_name"),
     ]
@@ -101,8 +105,12 @@ def get_tasks() -> Dict[str, Any]:
 @app.post("/reset")
 async def reset(request: Request) -> Dict[str, Any]:
     global env, current_task_id
-    try: body = await request.json()
-    except Exception: body = {}
+    try:
+        body = await request.json()
+        if not isinstance(body, dict):
+            body = {}
+    except Exception:
+        body = {}
 
     task_name = _extract_task_name(body, request)
     if task_name in ("easy", "medium", "hard"):
@@ -126,6 +134,8 @@ async def reset(request: Request) -> Dict[str, Any]:
 async def step(request: Request) -> Dict[str, Any]:
     try:
         payload = await request.json()
+        if not isinstance(payload, dict):
+            payload = {}
         action_dict = _extract_action_payload(payload)
         result = env.step(action_dict)
         observation = result.get("observation") or {"text": "", "metadata": {}}
@@ -157,7 +167,21 @@ async def step(request: Request) -> Dict[str, Any]:
         }
     except Exception as exc:
         safe_err = 0.01
-        return {"observation": {"text": "", "metadata": {}}, "reward": safe_err, "score": safe_err, "done": True, "info": {"task_score": safe_err, "score": safe_err}}
+        fallback_task_id = current_task_id if current_task_id in ("easy", "medium", "hard") else "easy"
+        return {
+            "observation": {"text": "", "metadata": {}},
+            "reward": safe_err,
+            "score": safe_err,
+            "done": True,
+            "info": {
+                "error": "step_failed",
+                "message": str(exc),
+                "task_id": fallback_task_id,
+                "task_score": safe_err,
+                "score": safe_err,
+                "normalized_score": safe_err,
+            },
+        }
 
 @app.get("/state")
 def get_state(): return env.state()

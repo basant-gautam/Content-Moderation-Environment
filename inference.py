@@ -1,5 +1,6 @@
 import os
 import time
+import math
 try:
     import requests
 except ImportError:
@@ -19,6 +20,15 @@ LABEL_TO_ACTION = {"safe": "allow", "spam": "delete", "hate": "flag", "violence"
 def _ensure_requests_available():
     if requests is None:
         raise RuntimeError("requests dependency is required to run inference.py")
+
+def _bounded_reward(value, default=0.01):
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        numeric = default
+    if not math.isfinite(numeric):
+        numeric = default
+    return round(min(0.99, max(0.01, numeric)), 4)
 
 def _wait_for_env(env_url, timeout_seconds=60):
     _ensure_requests_available()
@@ -97,8 +107,10 @@ def evaluate_task(client, task_name, model_name):
             )
             step_resp.raise_for_status()
             step_resp = step_resp.json()
-            
-            reward = step_resp.get("reward", step_resp.get("info", {}).get("reward", 0.01))
+
+            info = step_resp.get("info", {}) if isinstance(step_resp.get("info", {}), dict) else {}
+            raw_reward = info.get("task_score", step_resp.get("score", step_resp.get("reward", info.get("reward", 0.01))))
+            reward = _bounded_reward(raw_reward)
             done = step_resp.get("done", False)
             observation = step_resp.get("observation")
             
