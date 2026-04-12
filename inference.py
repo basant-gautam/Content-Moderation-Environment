@@ -66,6 +66,7 @@ def evaluate_task(client, task_name, model_name):
     rewards = []
     steps_taken = 0
     success = False
+    final_score = 0.01
     
     try:
         _ensure_requests_available()
@@ -119,12 +120,14 @@ def evaluate_task(client, task_name, model_name):
             steps_taken = step
 
         avg_reward = sum(rewards) / len(rewards) if rewards else 0.01
-        success = avg_reward > 0.1
+        final_score = _bounded_reward(avg_reward)
+        success = final_score > 0.1
     except Exception as e:
         print(f"Error Details: {str(e)}", flush=True)
     finally:
+        final_score = _bounded_reward(final_score)
         rewards_str = ",".join([f"{r:.2f}" for r in rewards]) if rewards else "0.01"
-        print(f"[END] success={str(success).lower()} steps={steps_taken} rewards={rewards_str}", flush=True)
+        print(f"[END] success={str(success).lower()} steps={steps_taken} rewards={rewards_str} score={final_score:.2f}", flush=True)
 
 def main():
     model_name = os.environ.get("MODEL_NAME", "llama-3.3-70b-versatile")
