@@ -35,6 +35,19 @@ def _bounded_score(value: Any, default: float = 0.01) -> float:
     return round(min(0.99, max(0.01, numeric)), 4)
 
 def _normalize_task_name(raw: Any) -> str:
+    if isinstance(raw, dict):
+        for key in ("id", "name", "task_id", "task_name", "task", "taskName"):
+            if key in raw:
+                normalized = _normalize_task_name(raw.get(key))
+                if normalized:
+                    return normalized
+        return ""
+    if isinstance(raw, list):
+        for item in raw:
+            normalized = _normalize_task_name(item)
+            if normalized:
+                return normalized
+        return ""
     text = str(raw or "").strip().lower()
     if "easy" in text: return "easy"
     if "medium" in text: return "medium"
@@ -42,7 +55,18 @@ def _normalize_task_name(raw: Any) -> str:
     return ""
 
 def _extract_task_name(body: Dict[str, Any], request: Request) -> str:
-    candidates = [body.get("task"), body.get("task_id"), request.query_params.get("task")]
+    candidates = [
+        body.get("task"),
+        body.get("task_id"),
+        body.get("task_name"),
+        body.get("taskName"),
+        body.get("id"),
+        body.get("name"),
+        body.get("config"),
+        request.query_params.get("task"),
+        request.query_params.get("task_id"),
+        request.query_params.get("task_name"),
+    ]
     for candidate in candidates:
         normalized = _normalize_task_name(candidate)
         if normalized: return normalized
@@ -67,7 +91,11 @@ def health() -> Dict[str, Any]: return {"status": "ok", "dataset_size": len(load
 
 @app.get("/tasks")
 def get_tasks() -> Dict[str, Any]:
-    tasks = [_task_entry("easy", "Easy", ""), _task_entry("medium", "Medium", ""), _task_entry("hard", "Hard", "")]
+    tasks = [
+        _task_entry("easy", "Easy Moderation", "Spam-focused moderation samples."),
+        _task_entry("medium", "Medium Moderation", "Hate and abusive content detection."),
+        _task_entry("hard", "Hard Moderation", "Context-aware and multi-step moderation edge cases."),
+    ]
     return {"tasks": tasks, "task_count": 3}
 
 @app.post("/reset")
@@ -85,10 +113,13 @@ async def reset(request: Request) -> Dict[str, Any]:
         current_task_id = "all"
         
     observation = env.reset()
+    task_id = str(observation.get("metadata", {}).get("level", current_task_id))
+    if task_id not in ("easy", "medium", "hard"):
+        task_id = current_task_id if current_task_id in ("easy", "medium", "hard") else "easy"
     return {
         "observation": {"text": str(observation.get("text", "")), "metadata": dict(observation.get("metadata", {}))},
         "done": bool(env.done),
-        "info": {"task_id": current_task_id if current_task_id != "all" else "easy", "task_score": 0.01, "score": 0.01},
+        "info": {"task_id": task_id, "task_score": 0.01, "score": 0.01},
     }
 
 @app.post("/step")
@@ -99,8 +130,12 @@ async def step(request: Request) -> Dict[str, Any]:
         result = env.step(action_dict)
         observation = result.get("observation") or {"text": "", "metadata": {}}
         info = dict(result.get("info", {}))
-        
-        info["task_id"] = current_task_id if current_task_id != "all" else "easy"
+
+        if not info.get("task_id"):
+            if env.history:
+                info["task_id"] = str(env.history[-1].get("task_id", current_task_id))
+            else:
+                info["task_id"] = current_task_id if current_task_id in ("easy", "medium", "hard") else "easy"
 
         safe_score = _bounded_score(info.get("task_score", info.get("score", 0.01)))
         safe_reward = _bounded_score(info.get("reward", 0.01))
