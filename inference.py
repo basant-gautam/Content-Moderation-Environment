@@ -115,7 +115,7 @@ def evaluate_task(client, task_name, model_name):
         print(f"[END] success={str(success).lower()} steps={steps_taken} rewards={rewards_str}", flush=True)
 
 def main():
-    model_name = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
+    model_name = os.environ.get("MODEL_NAME", "llama-3.3-70b-versatile")
 
     api_base_url = os.environ.get("API_BASE_URL")
     api_key = os.environ.get("API_KEY")
