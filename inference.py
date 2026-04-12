@@ -6,9 +6,13 @@ except ImportError:
     requests = None
 from openai import OpenAI
 
-# 🚨 FIX 1: Exact Dux snippet pattern with "localhost" instead of "127.0.0.1" 🚨
-ENV_URL = os.environ.get("ENV_URL", "http://localhost:8000").rstrip("/")
+# 🚨 BACKEND SERVER LOCAL URL 🚨
+ENV_URL = os.environ.get("ENV_URL", "http://127.0.0.1:8000").rstrip("/")
 REQUEST_TIMEOUT_SECONDS = 15
+
+# 🚨 THE FIX: Bypass proxy for local server requests 🚨
+# This prevents the platform's LLM proxy from intercepting our local backend calls
+LOCAL_PROXIES = {"http": None, "https": None}
 
 LABEL_TO_ACTION = {"safe": "allow", "spam": "delete", "hate": "flag", "violence": "escalate"}
 
@@ -16,14 +20,18 @@ def _ensure_requests_available():
     if requests is None:
         raise RuntimeError("requests dependency is required to run inference.py")
 
-# 🚨 FIX 2: Increased timeout to 60s to give the grader server time to boot 🚨
 def _wait_for_env(env_url, timeout_seconds=60):
     _ensure_requests_available()
     deadline = time.time() + timeout_seconds
     last_error = None
     while time.time() < deadline:
         try:
-            response = requests.get(f"{env_url}/health", timeout=REQUEST_TIMEOUT_SECONDS)
+            # Proxies bypassed here
+            response = requests.get(
+                f"{env_url}/health", 
+                timeout=REQUEST_TIMEOUT_SECONDS,
+                proxies=LOCAL_PROXIES
+            )
             if response.ok:
                 return
         except Exception as exc:
@@ -31,7 +39,6 @@ def _wait_for_env(env_url, timeout_seconds=60):
         time.sleep(1.0)
     raise RuntimeError(f"environment backend not reachable at {env_url}: {last_error}")
 
-# 🚨 FIX 3: Wrapped in try/except so it doesn't crash the script if proxy drops 🚨
 def _probe_llm_proxy(client, model_name):
     try:
         client.chat.completions.create(
@@ -51,10 +58,13 @@ def evaluate_task(client, task_name, model_name):
     
     try:
         _ensure_requests_available()
+        
+        # Proxies bypassed here for /reset
         reset_resp = requests.post(
             f"{ENV_URL}/reset",
             json={"task": task_name},
             timeout=REQUEST_TIMEOUT_SECONDS,
+            proxies=LOCAL_PROXIES
         )
         reset_resp.raise_for_status()
         data = reset_resp.json() if reset_resp.status_code == 200 else {}
@@ -65,6 +75,7 @@ def evaluate_task(client, task_name, model_name):
             if done or not observation: break
             text_to_moderate = observation.get("text", "")
 
+            # LLM Proxy IS used here natively via the OpenAI client
             completion = client.chat.completions.create(
                 model=model_name,
                 messages=[
@@ -76,10 +87,12 @@ def evaluate_task(client, task_name, model_name):
             action_label = "".join(filter(str.isalpha, completion.choices[0].message.content.strip().lower()))
             action = LABEL_TO_ACTION.get(action_label, "flag")
 
+            # Proxies bypassed here for /step
             step_resp = requests.post(
                 f"{ENV_URL}/step",
                 json={"label": action_label, "action": action},
                 timeout=REQUEST_TIMEOUT_SECONDS,
+                proxies=LOCAL_PROXIES
             )
             step_resp.raise_for_status()
             step_resp = step_resp.json()
@@ -103,7 +116,7 @@ def evaluate_task(client, task_name, model_name):
 def main():
     model_name = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
     
-    # Strictly initializing OpenAI client as requested by maintainer
+    # Official client uses the environment proxy correctly
     client = OpenAI(base_url=os.environ["API_BASE_URL"], api_key=os.environ["API_KEY"])
     
     _wait_for_env(ENV_URL)
