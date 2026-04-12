@@ -186,10 +186,16 @@ python inference.py
 
 Environment variables used by inference.py:
 
-- API_BASE_URL (default: https://basant-levi-ai-content-moderation-openenv.hf.space)
-- MODEL_NAME (default: llama-3.1-8b-instant)
-- HF_TOKEN or OPENAI_API_KEY (required)
-- OPENAI_BASE_URL (optional, default: https://api.groq.com/openai/v1)
+- API_KEY (required): API key for the OpenAI-compatible LLM endpoint
+- API_BASE_URL (required): OpenAI-compatible LLM endpoint (for example, https://api.groq.com/openai/v1)
+- MODEL_NAME (optional, default: llama-3.3-70b-versatile)
+- ENV_URL (optional, default: http://127.0.0.1:8000): moderation environment backend URL used for /health, /reset, and /step
+
+inference.py output lines:
+
+- [START] includes task and model metadata
+- [STEP] includes action and reward
+- [END] includes success, steps, rewards, and score
 
 ## 7) Docker mode
 

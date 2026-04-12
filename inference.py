@@ -7,12 +7,11 @@ except ImportError:
     requests = None
 from openai import OpenAI
 
-# 🚨 BACKEND SERVER LOCAL URL 🚨
+# Backend environment URL.
 ENV_URL = os.environ.get("ENV_URL", "http://127.0.0.1:8000").rstrip("/")
 REQUEST_TIMEOUT_SECONDS = 15
 
-# 🚨 THE FIX: Bypass proxy for local server requests 🚨
-# This prevents the platform's LLM proxy from intercepting our local backend calls
+# Bypass proxies for local environment requests.
 LOCAL_PROXIES = {"http": None, "https": None}
 
 LABEL_TO_ACTION = {"safe": "allow", "spam": "delete", "hate": "flag", "violence": "escalate"}
@@ -36,7 +35,6 @@ def _wait_for_env(env_url, timeout_seconds=60):
     last_error = None
     while time.time() < deadline:
         try:
-            # Proxies bypassed here
             response = requests.get(
                 f"{env_url}/health", 
                 timeout=REQUEST_TIMEOUT_SECONDS,
@@ -70,8 +68,7 @@ def evaluate_task(client, task_name, model_name):
     
     try:
         _ensure_requests_available()
-        
-        # Proxies bypassed here for /reset
+
         reset_resp = requests.post(
             f"{ENV_URL}/reset",
             json={"task": task_name},
@@ -87,7 +84,6 @@ def evaluate_task(client, task_name, model_name):
             if done or not observation: break
             text_to_moderate = observation.get("text", "")
 
-            # LLM Proxy IS used here natively via the OpenAI client
             completion = client.chat.completions.create(
                 model=model_name,
                 messages=[
@@ -99,7 +95,6 @@ def evaluate_task(client, task_name, model_name):
             action_label = "".join(filter(str.isalpha, completion.choices[0].message.content.strip().lower()))
             action = LABEL_TO_ACTION.get(action_label, "flag")
 
-            # Proxies bypassed here for /step
             step_resp = requests.post(
                 f"{ENV_URL}/step",
                 json={"label": action_label, "action": action},
@@ -139,7 +134,7 @@ def main():
         return
 
     try:
-        # Official client uses the environment proxy correctly
+        # Initialize the OpenAI client with configured endpoint and credentials.
         client = OpenAI(base_url=api_base_url, api_key=api_key)
     except Exception as exc:
         print(f"Unable to initialize LLM client: {str(exc)}", flush=True)
@@ -148,7 +143,7 @@ def main():
     try:
         _wait_for_env(ENV_URL)
     except Exception as exc:
-        # Defensive guard: _wait_for_env should not raise, but keep main non-fatal if it does.
+        # Keep execution non-fatal if readiness checking raises unexpectedly.
         print(f"Warning: backend readiness check failed: {str(exc)}", flush=True)
 
     try:
