@@ -11,9 +11,9 @@ from server.moderation_logic import moderate_text
 
 app = FastAPI(title="AI Content Moderation Environment", version="1.0.0")
 
-# YAHAN 0 AUR 1 KIYA HAI SCHEMA KE LIYE
-TASK_SCORE_MIN = 0.0
-TASK_SCORE_MAX = 1.0
+# STRICT OPEN-INTERVAL SCORE RANGE FOR TASK VALIDATION
+TASK_SCORE_MIN = 0.01
+TASK_SCORE_MAX = 0.99
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
